@@ -1,161 +1,209 @@
-var mongoose = require('mongoose');
-var Mekan = mongoose.model('mekan');
+var mongoose=require('mongoose')
+var Mekan=mongoose.model('mekan')
+const cevapOlustur=function(res,status,content){
+res
+  .status(status)
+  .json(content)
 
-const cevapOlustur = function(res, status, content){
-  res.status(status).json(content);
 }
 
-const mekanlariListele = async(req, res) => {
-  //url'den enlem ve boylam parametrelerini almalıyız
-  var boylam = parseFloat(req.query.boylam);
-  var enlem = parseFloat(req.query.enlem);
-  //alınan parametrelerle nokta nesnesi oluşturmalıyız
-  var nokta = {
-    type: "Point",
-    coordinates: [enlem, boylam]
-  };
-  //coğrafi seçeneklerin nesnesini oluşturmalıyız
-  var geoOptions = {
-    distanceField: "mesafe",
-    spherical: true,
-    key: "koordinatlar"
-  };
-  
-  if(!enlem || !boylam){
-    cevapOlustur(res, 404, {'mesaj' : 'enlem ve boylam zorunlu parametreler'});
-    return;
-  }
-
-  try {
-    const sonuc = await Mekan.aggregate([{
-      $geoNear: {
-        near: nokta,
-        ...geoOptions
+var sonPuanHesapla= function(gelenMekan) {
+  var i, yorumSayisi, ortalamaPuan, toplamPuan;
+  if (gelenMekan.yorumlar && gelenMekan.yorumlar.length > 0) {
+    yorumSayisi= gelenMekan.yorumlar.length;
+    toplamPuan = 0;
+    for ( i = 0; i < yorumSayisi; i++) {
+      toplamPuan = toplamPuan + gelenMekan.yorumlar[i].puan;
+    }
+    ortalamaPuan = Math.round(toplamPuan/yorumSayisi);
+    gelenMekan.puan= ortalamaPuan;
+    gelenMekan.save(function(hata) {
+      if (hata) {
+        console.log(hata);
       }
-    }]);
-
-    const mekanlar = sonuc.map(mekan => { return {
-      _id: mekan._id,
-      ad: mekan.ad,
-      adres: mekan.adres,
-      puan: mekan.puan,
-      imkanlar: mekan.imkanlar,
-      mesafe: mekan.mesafe.toFixed() + ' m'
-    }});
-
-    cevapOlustur(res, 200, mekanlar);
-  } catch(e){
-    console.log(e);
-    cevapOlustur(res, 404, e);
+    });
   }
-}
+}; 
 
-const mekanEkle = function(req, res){
-  Mekan.create({
-    ad: req.body.ad,
-    adres: req.body.adres,
-    imkanlar: req.body.imkanlar.split(","),
-    koordinatlar: [parseFloat(req.body.enlem), parseFloat(req.body.boylam)],
-    saatler: [{
-      gunler: req.body.haftaici,
-      acilis: req.body.haftaiciacilis,
-      kapanis: req.body.haftaicikapanis,
-      kapali: req.body.haftaicikapali
-    },{
-      gunler: req.body.cumartesi,
-      acilis: req.body.cumartesiacilis,
-      kapanis: req.body.cumartesikapanis,
-      kapali: req.body.cumartesikapali
-    }]
-  }, function(hata, mekan){
-    if(hata){
-      cevapOlustur(res, 400, hata);
-    } else {
-      cevapOlustur(res, 201, mekan);
+var ortalamaPuanGuncelle = function(mekanid) {
+  Mekan
+  .findById(mekanid)
+  .select('puan yorumlar')
+  .exec(function(hata,mekan) {
+    if (!hata) {
+      sonPuanHesapla(mekan);
     }
   });
 }
 
-const mekanGetir = function(req, res){
-  if(req.params && req.params.mekanid){
-    Mekan.findById(req.params.mekanid)
-    .exec(function(hata, mekan){
-      if(!mekan){
-        cevapOlustur(res, 404, {'durum' : 'mekanid bulunamadı'});
-        return;
-      } else if(hata){
-        cevapOlustur(res, 404, hata);
-        return;
-      }
-      cevapOlustur(res, 200, mekan);
-    });
+var yorumOlustur= function(req,res,gelenMekan) {
+  if (!gelenMekan) {
+    cevapOlustur(res, 404, {"mesaj":"mekanid bulunamadı"});
   } else {
-    cevapOlustur(res, 404, {'durum' : 'istekte mekanid yok!'});
-  }
-}
-
-const mekanGuncelle = function(req, res){
-  if(!req.params.mekanid){
-    cevapOlustur(res, 404, {"mesaj" : "bulunamadi. mekanid gerekli"});
-    return;
-  }
-  Mekan.findById(req.params.mekanid)
-  //- ile yazılan alanlar haricinde diğer her şeyin dahil edileceğini söyler
-  .select('-yorumlar -puan')
-  .exec(function(hata, gelenMekan){
-    if(!gelenMekan){
-      cevapOlustur(res, 404, {"mesaj" : "mekanid bulunamadi"});
-      return;
-    } else if (hata){
-      cevapOlustur(res, 400, hata);
-      return;
-    }
-
-    gelenMekan.ad = req.body.ad;
-    gelenMekan.adres = req.body.adres;
-    gelenMekan.imkanlar = req.body.imkanlar.split(",");
-    gelenMekan.koordinatlar = [parseFloat(req.body.enlem), parseFloat(req.body.boylam)];
-    gelenMekan.saatler = [{
-      gunler: req.body.haftaici,
-      acilis: req.body.haftaiciacilis,
-      kapanis: req.body.haftaicikapanis,
-      kapali: req.body.haftaicikapali
-    }, {
-      gunler: req.body.cumartesi,
-      acilis: req.body.cumartesiacilis,
-      kapanis: req.body.cumartesikapanis,
-      kapali: req.body.cumartesikapali
-    }];
-    gelenMekan.save(function(hata, mekan){
-      if(hata){
-        cevapOlustur(res, 404, hata);
+    gelenMekan.yorumlar.push({
+      yorumYapan: req.body.yorumYapan,
+      puan: req.body.puan,
+      yorumMetni: req.body.yorumMetni,
+      tarih: Date.now()
+    });
+    gelenMekan.save(function(hata,mekan) {
+      var yorum;
+      if (hata) {
+        cevapOlustur(res,400,hata);
       } else {
-        cevapOlustur(res, 200, mekan);
+        ortalamaPuanGuncelle(mekan._id);
+        yorum = mekan.yorumlar[mekan.yorumlar.length-1];
+        cevapOlustur(res,201,yorum);
       }
     });
-  });
-}
-
-const mekanSil = function(req, res){
-  var mekanid = req.params.mekanid;
-  if(mekanid){
-    Mekan.findByIdAndRemove(mekanid)
-    .exec(function(hata, gelenMekan) {
-      if(hata) {
-        cevapOlustur(res, 404, hata);
-        return;
-      }
-      cevapOlustur(res, 204, null);
-    });
-  } else {
-    cevapOlustur(res, 404, {"mesaj" : "mekanid bulunamadi"});
   }
-}
+};
 
-module.exports = {
-  mekanlariListele,
-  mekanEkle,
-  mekanGetir,
-  mekanSil,
-  mekanGuncelle
+const yorumEkle = function (req, res) {
+      var mekanid= req.params.mekanid;
+      console.log("mekanid", mekanid)
+      if (mekanid) {
+        Mekan
+        .findById(mekanid)
+        .select('yorumlar')
+        .exec(
+          function(hata, gelenMekan) {
+            console.log("yorumlar",gelenMekan?.yorumlar)
+            if (hata) {
+              cevapOlustur(res, 400, hata);
+            } else {
+              yorumOlustur(req,res,gelenMekan);
+            } 
+          });
+      } else {
+        cevapOlustur(res, 404, {"mesaj": "Bulunamadı. mekanid gerekli"});
+      }
+};
+
+const yorumGetir = function (req, res) {
+        //yorumid parametresi var mı kontrol et
+        if (req.params && req.params.mekanid && req.params.yorumid) {
+          //sadece mekan adını ve mekanın yorumlarını getir 
+         Mekan.findById(req.params.mekanid)       
+         .select('ad yorumlar')
+          .exec(
+            function(hata, mekan) {
+            var cevap, yorum;
+            if (!mekan) {
+              cevapOlustur (res, 404, {"mesaj": "mekanid bulunamadı"});
+              return;
+            }else if (hata) {
+              cevapOlustur(res, 400, hata);
+              return;
+            }//mekana ait yorum var mı?
+            if (mekan.yorumlar && mekan.yorumlar.length > 0) {
+              //verilen yorumid ye uygun yorum var mı?
+              yorum = mekan.yorumlar.id(req.params.yorumid);
+              //yoksa hata mesajı ver
+              if (!yorum) {
+              cevapOlustur (res, 404, {"mesaj": "yorumid bulunamadı"});
+              }//varsa cevap nesnesi döndür.içine mekan adı,idsi ve yorumu ekle
+              else{
+              cevap= {
+                  mekan : {
+                  ad : mekan.ad,
+                id : req.params.mekanid
+                },
+                yorum : yorum
+              };
+              cevapOlustur (res, 200, cevap);
+              }
+            }else {
+              cevapOlustur (res, 404, {"mesaj":"Hiç yorum yok"});
+          }
+          }
+          );
+        } else {
+          cevapOlustur (res, 404, {"mesaj": "Bulunamadı."});
+        }
+     };
+
+const yorumGuncelle = function(req, res){
+  if(!req.params.mekanid || !req.params.yorumid) {
+    cevapOlustur(res, 404, {"mesaj" : "Bulunamadı. mekanid ve yorumid zorunlu"});
+    return;
+  }
+
+  Mekan
+  .findById(req.params.mekanid)
+  .select('yorumlar')
+  .exec(function(hata,gelenMekan){
+    var yorum;
+    if(!gelenMekan) {
+      cevapOlustur(res, 404, {"mesaj" : "mekanid bulunamadı."});
+      return;
+    } else if(hata) {
+      cevapOlustur(res, 400, hata);
+        return;
+    }
+
+    if(gelenMekan.yorumlar && gelenMekan.yorumlar.length > 0){
+      yorum = gelenMekan.yorumlar.find(yorum => yorum["_id"] == req.params.yorumid)
+      if(!yorum) {
+        cevapOlustur(res, 404, {"mesaj" : "yorumid bulunamadı."});
+      } else {
+        yorum.yorumYapan = req.body.yorumYapan;
+        yorum.puan = req.body.puan;
+        yorum.yorumMetni = req.body.yorumMetni;
+        gelenMekan.save(function(hata, mekan){
+          if(hata) {
+            cevapOlustur(res, 404, hata);
+          } else {
+            ortalamaPuanGuncelle(mekan._id);
+            cevapOlustur(res, 200,  yorum);
+          }
+        });
+      }
+    } else {
+      cevapOlustur(res, 404, {"mesaj" : "Güncellenecek yorum yok"});
+    }
+  });
+};
+
+const yorumSil=function(req, res) {
+  if (!req.params.mekanid || !req.params.yorumid) {
+    cevapOlustur(res,404,{"mesaj": "Bulunamadı. mekanid ve yorumid gerekli"});
+    return;
+  }
+  Mekan
+  .findById(req.params.mekanid)
+  .select('yorumlar')
+  .exec(function(hata,gelenMekan) {
+    if (!gelenMekan) {
+      cevapOlustur(res,404,{"mesaj": "mekanid bulunamadı"});
+      return;
+    } else if (hata) {
+      cevapOlustur(res,400,hata);
+      return;
+    }
+    if(gelenMekan.yorumlar && gelenMekan.yorumlar.length>0) {
+      if(!gelenMekan.yorumlar.find(yorum => yorum["_id"] == req.params.yorumid)) {
+        cevapOlustur(res,404,{"mesaj": "yorumid bulunamadı."});
+      } else {
+        gelenMekan.yorumlar.find(yorum => yorum["_id"] == req.params.yorumid).remove();
+        gelenMekan.save(function(hata,mekan) {
+          if(hata) {
+            cevapOlustur(res,404,hata);
+          } else {
+            ortalamaPuanGuncelle(mekan._id);
+            cevapOlustur(res,204,null);
+          }
+        });
+      }
+    }else {
+      cevapOlustur(res,404,{"mesaj":"Silinecek yorum bulunamadı."});
+    }
+  });
+};
+
+module.exports={
+yorumEkle,
+yorumGetir,
+yorumSil,
+yorumGuncelle
 }

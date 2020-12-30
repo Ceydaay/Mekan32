@@ -1,7 +1,7 @@
 var mongoose = require('mongoose');
 
 var saatSema = new mongoose.Schema({
-  gunler: { type: String, required: true },
+  gunler: { type: String, required: true  },
   acilis: String,
   kapanis: String,
   kapali: { type: Boolean, required: true }
