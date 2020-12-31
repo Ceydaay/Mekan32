@@ -48,3 +48,4 @@ process.on('SIGTERM', function () {
 });
 
 require('./mekansema');
+module.exports = mongoose;

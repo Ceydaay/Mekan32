@@ -1,4 +1,4 @@
-var mongoose=require('mongoose')
+var mongoose=require('../models/db')
 var Mekan=mongoose.model('mekan')
 const cevapOlustur=function(res,status,content){
   res
