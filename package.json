@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon --watch app_api node ./bin/www"
+    "start": "node ./bin/www"
   },
   "engines": {
     "node": "~14.15.0",
