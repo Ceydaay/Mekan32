@@ -1,121 +1,228 @@
-const anaSayfa = function(req, res, next) {
-  res.render('mekanlar-liste',
-    { title : 'Anasayfa',
-      'footer' : 'Ceyda Yılmaz 2020',
-      'sayfaBaslik' : {
-        'siteAd' : 'Mekan32',
-        'aciklama' : 'Isparta civarındaki mekanları keşfedin!'
-      },
-      'mekanlar' : [
-        {
-          'ad' : 'Starbucks',
-          'adres' : 'Centrum Garden',
-          'puan' : '5',
-          'imkanlar' : ['Kahve', 'Çay', 'Pasta'],
-          'mesafe' : '1000km'
-        },
-        {
-          'ad' : 'Gloria Jeans',
-          'adres' : 'Iyaş Avm',
-          'puan' : '3',
-          'imkanlar' : ['Kahve', 'Kek', 'Çay'],
-          'mesafe' : '5km'
-        },
-        {
-          'ad' : 'Kahve Dünyası',
-          'adres' : 'Iyaş Avm',
-          'puan' : '2',
-          'imkanlar' : ['Kahve', 'Kek', 'Pasta'],
-          'mesafe' : '5km'
-        },
-        {
-          'ad' : 'MackBear',
-          'adres' : 'Fatih Mahallesi',
-          'puan' : '5',
-          'imkanlar' : ['Kahve Çeşitleri', 'Kek', 'Pasta'],
-          'mesafe' : '6km'
-        },
-        {
-          'ad' : 'Book Cafe',
-          'adres' : 'Anadolu Mahallesi',
-          'puan' : '1',
-          'imkanlar' : ['Kahve', 'Kek', 'Çay', 'Tost', 'Çalışma Alanları'],
-          'mesafe' : '100km'
-        }
-      ]
-    }
-   );
+var express = require('express');
+var router = express.Router();
+
+var request = require('postman-request');
+var apiSecenekleri = {
+  sunucu: "http://localhost:3000",
+  apiYolu: '/api/mekanlar/'
+}
+var istekSecenekleri
+var footer = "Ceyda Yılmaz 2021"
+
+var mesafeyiFormatla = function (mesafe) {
+  var yeniMesafe, birim;
+  if (mesafe > 1000) {
+    yeniMesafe = parseFloat(mesafe / 1000).toFixed(2);
+    birim = ' km';
+  } else {
+    yeniMesafe = parseFloat(mesafe).toFixed(1);
+    birim = 'm';
+  }
+  return yeniMesafe + birim;
 }
 
-const mekanBilgisi = function(req, res, next) {
-  res.render('mekan-detay', 
-    { title : 'Mekan Bilgisi',
-      'sayfaBaslik' : 'Starbucks',
-      'footer' : 'Ceyda Yılmaz 2020',
-      'mekanBilgisi' : {
-        'ad' : 'Starbucks',
-        'adres' : 'Centrum Garden',
-        'puan' : 5,
-        'imkanlar' : ['Kahve', 'Çay', 'Pasta'],
-        'koordinatlar' : {
-          'enlem': '37.781885',
-          'boylam' : '30.566034'
-        },
-        'saatler' : [
-          {
-            'gunler' : 'Pazartesi - Cuma',
-            'acilis' : '7:00',
-            'kapanis' : '23:00',
-            'kapali' : false
-          },
-          {
-            'gunler' : 'Cumartesi',
-            'acilis' : '9:00',
-            'kapanis' : '22:00',
-            'kapali' : false
-          },
-          {
-            'gunler' : 'Pazar',
-            'kapali' : true
-          }
-        ],
-        'yorumlar' : [
-          {
-            'yorumYapan' : 'Elmina Mammadzada',
-            'puan' : '5',
-            'tarih' : '04.12.2020',
-            'yorumMetni' : 'Mükemmel bir yer.'
-          },
-          {
-            'yorumYapan' : 'Ceyda Yılmaz',
-            'puan' : '1',
-            'tarih' : '03.12.2020',
-            'yorumMetni' : 'Bebat.'
-          },
-          {
-            'yorumYapan' : 'Rozerin Günes',
-            'puan' : '4',
-            'tarih' : '01.11.2012',
-            'yorumMetni' : 'Kahveleri güzel.'
-          }
-        ]
+var anaSayfaOlustur = function (req, res, cevap, mekanListesi) {
+  var mesaj;
+  try {
+    if (!(mekanListesi instanceof Array)) {
+      mesaj = "API HATASI: Birşeyler ters gitti";
+      mekanListesi = [];
+    } else {
+      if (!mekanListesi.length) {
+        mesaj = "Civarda Herhangi Bir Mekan Bulunamadı!";
       }
     }
-  );
+    res.render('mekanlar-liste',
+      {
+        baslik: 'Mekan32',
+        sayfaBaslik: {
+          siteAd: 'Mekan32',
+          aciklama: 'Isparta Civarındaki Mekanları Keşfedin!'
+        },
+        footer: footer,
+        mekanlar: mekanListesi,
+        mesaj: mesaj,
+        cevap: cevap
+      });
+  } catch (err) {
+    console.log(err)
+  }
+
 }
 
-const yorumEkle = function(req, res, next) {
-  res.render('yorum-ekle', 
-    { 
-      title : 'Yorum Ekle',
-      'footer' : 'Ceyda Yılmaz 2020'
+const anaSayfa = function (req, res) {
+
+  try {
+    istekSecenekleri =
+    {
+      url: apiSecenekleri.sunucu + apiSecenekleri.apiYolu,
+      method: "GET",
+      json: {},
+
+      qs: {
+        enlem: req.query.enlem,
+        boylam: req.query.boylam
+      }
+    };
+    console.log(istekSecenekleri)
+    request(
+      istekSecenekleri,
+      function (hata, cevap, mekanlar) {
+        var i, gelenMekanlar;
+        gelenMekanlar = mekanlar;
+
+        if (!hata && gelenMekanlar.length) {
+          for (i = 0; i < gelenMekanlar.length; i++) {
+            gelenMekanlar[i].mesafe =
+              mesafeyiFormatla(gelenMekanlar[i].mesafe);
+          }
+        }
+        anaSayfaOlustur(req, res, cevap, gelenMekanlar);
+      }
+    );
+  } catch (err) {
+    console.log(err)
+  }
+
+}
+
+var detaySayfasiOlustur = function (req, res, mekanDetaylari) {
+  res.render('mekan-detay',
+    {
+      baslik: mekanDetaylari.ad,
+      footer: footer,
+      sayfaBaslik: mekanDetaylari.ad,
+      mekanBilgisi: mekanDetaylari
+    });
+}
+
+var hataGoster = function (req, res, durum) {
+  var baslik, icerik;
+  if (durum == 404) {
+    baslik = "404, Sayfa Bulunamadı!";
+    icerik = "Kusura bakmayın sayfayı bulamadık!";
+  }
+  else {
+    baslik = durum + ", Bir şeyler ters gitti!";
+    icerik = "Ters giden bir şey var!";
+  }
+  res.status(durum);
+  res.render('hata', {
+    baslik: baslik,
+    icerik: icerik,
+
+  });
+};
+
+
+
+var mekanBilgisiGetir = function (req, res, callback){
+  var istekSecenekleri;
+
+  istekSecenekleri = {
+    url : apiSecenekleri.sunucu + apiSecenekleri.apiYolu + req.params.mekanid,
+
+    method : "GET",
+    json : {}
+  };
+  request(
+    istekSecenekleri,
+        function(hata, cevap, mekanDetaylari){
+          var gelenMekan = mekanDetaylari;
+          if(cevap.statusCode==200) {
+            gelenMekan.koordinatlar = {
+              enlem : mekanDetaylari.koordinatlar[0],
+              boylam : mekanDetaylari.koordinatlar[1]
+            };
+            callback(req, res,gelenMekan);
+          } else {
+            hataGoster(req, res, cevap.statusCode);
+          }
+        }
+
+  );
+
+};
+/*var mekanBilgisi = function (req, res, callback) {
+  istekSecenekleri = {
+    url: apiSecenekleri.sunucu + apiSecenekleri.apiYolu + req.params.mekanid,
+    method: "GET",
+    json: {}
+  };
+  request(
+    istekSecenekleri,
+    function (hata, cevap, mekanDetaylari) {
+      var gelenMekan = mekanDetaylari;
+      //console.log("mekanDetaylari", mekanDetaylari)
+      if (cevap.statusCode == 200) {
+        gelenMekan.koordinatlar= {
+          enlem : mekanDetaylari.koordinatlar[0],
+          boylam : mekanDetaylari.koordinatlar[1],
+        }
+        detaySayfasiOlustur(req, res, mekanDetaylari);
+      } else {
+        hataGoster(req, res, cevap.statusCode);
+      }
+
     }
   );
-}
+}*/
 
+ const mekanBilgisi = function(req, res, callback) {
+  mekanBilgisiGetir(req , res , function(req , res , cevap){
+   detaySayfasiOlustur(req , res , cevap);
+  });
+ };
+ 
+ 
+
+
+  var yorumSayfasiOlustur = function (req, res, mekanBilgisi) {
+  res.render('yorum-ekle', { 
+     baslik: mekanBilgisi.ad + 'Mekanına Yorum Ekle',
+     sayfaBaslik: mekanBilgisi.ad + 'Mekanına Yorum Ekle' ,
+     hata: req.query.hata
+});
+};
+const yorumEkle = function(req , res) {
+    mekanBilgisiGetir(req , res , function(req , res , cevap){
+      yorumSayfasiOlustur(req , res , cevap);
+    }
+      )
+    }
+
+  
+const yorumumuEkle = function(req, res) {
+  var gonderilenYorum, mekanid;
+  mekanid = req.params.mekanid;
+  gonderilenYorum = {
+    yorumYapan: req.body.name,
+    puan: parseInt(req.body.rating, 10),
+    yorumMetni : req.body.review
+  };
+  istekSecenekleri = {
+    url : apiSecenekleri.sunucu + apiSecenekleri.apiYolu + mekanid + '/yorumlar',
+    method : 'POST',
+    json : gonderilenYorum
+  };
+  if(!gonderilenYorum.yorumYapan || !gonderilenYorum.puan || !gonderilenYorum.yorumMetni) {
+    res.redirect('/mekan/' + mekanid + '/yorum/yeni?hata=evet');
+  } else {
+    request(istekSecenekleri, function(hata, cevap, body){
+      if (cevap.statusCode === 201) {
+        res.redirect('/mekan/' + mekanid);
+      } else if(cevap.statusCode === 400 && body.name && body.name === 'ValidationError') {
+        res.redirect('/mekan/' + mekanid + '/yorum/yeni?hata=evet');
+      } else {
+        hataGoster(req, res, cevap.statusCode);
+      }
+    });
+  }
+}
 
 module.exports = {
   anaSayfa,
-  mekanBilgisi, 
-  yorumEkle
-}
+  mekanBilgisi,
+  yorumEkle,
+  yorumumuEkle
+};

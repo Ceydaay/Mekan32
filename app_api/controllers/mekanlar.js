@@ -11,6 +11,7 @@ const mekanlariListele= async(req, res) =>{
   //URL den enlem ve boylam parametrelerini al
   var boylam= parseFloat(req.query.boylam);
   var enlem = parseFloat(req.query.enlem);
+  console.log("enlem:" + enlem + " " + "boylam:" + boylam)
   //alınan bilgilerden nokta tanımlama
   var nokta = {
     type: "Point",
@@ -42,7 +43,7 @@ const mekanlariListele= async(req, res) =>{
         adres: mekan.adres,
         puan: mekan.puan,
         imkanlar: mekan.imkanlar,
-        mesafe: mekan.mesafe.toFixed()+'m',
+        mesafe: mekan.mesafe.toFixed(),
       } });
       cevapOlustur (res, 200, mekanlar);
     }
