@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 var mongoose=require('../models/db')
 var Mekan=mongoose.model('mekan')
 const cevapOlustur=function(res,status,content){
@@ -7,13 +6,6 @@ res
   .json(content)
 
 }
-=======
-var mongoose = require("mongoose");
-var Mekan = mongoose.model("mekan");
-const cevapOlustur = function (res, status, content) {
-  res.status(status).json(content);
-};
->>>>>>> aad73f9c7d2c936f090ff996a8700ca2933bd09c
 
 var sonPuanHesapla = function (gelenMekan) {
   var i, yorumSayisi, ortalamaPuan, toplamPuan;
