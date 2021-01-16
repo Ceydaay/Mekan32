@@ -3,7 +3,7 @@ var router = express.Router();
 
 var request = require('postman-request');
 var apiSecenekleri = {
-  sunucu: "http://localhost:3000",
+  sunucu: "https://ceydayilmaz1811012064.herokuapp.com",
   apiYolu: '/api/mekanlar/'
 }
 var istekSecenekleri
